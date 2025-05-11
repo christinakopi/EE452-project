@@ -14,6 +14,7 @@ class GCN(nn.Module):
         nhid: int,
         nclass: int,
         dropout: float,
+        adj_weight: bool = False,
         use_bn: bool = False,
     ):
         """Initialize the model.
@@ -24,6 +25,7 @@ class GCN(nn.Module):
             nhid: Number of hidden features.
             nclass: Number of output features.
             dropout: Dropout rate.
+            adj_weight: Whether include the edge_weight.
             use_bn: Whether to use batch normalization.
         """
         super(GCN, self).__init__()
@@ -54,26 +56,34 @@ class GCN(nn.Module):
         self.dropout = dropout
         self.activation = f.relu
         self.use_bn = use_bn
+        self.weighted = adj_weight
 
         self.linear = nn.Linear(self.hidden_channels, self.output_channels)
+        self.pool = pyg_nn.global_mean_pool
 
-    def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+    
+    def forward(self, data) -> torch.Tensor:
         """Forward pass.
 
         Args:
-            x: The input features.
-            edge_index: The edge index.
+            data: Graph data.
 
         Returns:
             The output of the model.
         """
+        x, ei, ew, batch = data.x, data.edge_index, data.edge_attr, data.batch
         x = f.dropout(x, p=self.dropout, training=self.training)
         for i, conv in enumerate(self.convs):
-            x = conv(x, edge_index)
+            if self.weighted:
+                x = conv(x, ei, edge_weight=ew)
+            else: 
+                x = conv(x, ei)
             if self.use_bn:
                 x = self.bns[i](x)
             x = self.activation(x)
             x = f.dropout(x, p=self.dropout, training=self.training)
+            
+        x = self.pool(x, batch)
         x = self.linear(x)
         return f.softmax(x, dim=1)
 
@@ -88,6 +98,7 @@ class GNNSage(nn.Module):
         nhid: int,
         nclass: int,
         dropout: float,
+        adj_weight: bool = False,
         use_bn: bool = False,
     ):
         """Initialize the model.
@@ -98,6 +109,7 @@ class GNNSage(nn.Module):
             nhid: Number of hidden features.
             nclass: Number of output features.
             dropout: Dropout rate.
+            adj_weight: Whether include the edge_weight.
             use_bn: Whether to use batch normalization.
         """
         super(GNNSage, self).__init__()
@@ -129,25 +141,34 @@ class GNNSage(nn.Module):
         self.activation = f.relu
         self.use_bn = use_bn
 
-        self.linear = nn.Linear(self.hidden_channels, self.output_channels)
+        self.weighted = adj_weight
 
-    def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+        self.linear = nn.Linear(self.hidden_channels, self.output_channels)
+        self.pool = pyg_nn.global_mean_pool
+
+    
+    def forward(self, data) -> torch.Tensor:
         """Forward pass.
 
         Args:
-            x: The input features.
-            edge_index: The edge index.
+            data: Graph data.
 
         Returns:
             The output of the model.
         """
+        x, ei, ew, batch = data.x, data.edge_index, data.edge_attr, data.batch
         x = f.dropout(x, p=self.dropout, training=self.training)
         for i, conv in enumerate(self.convs):
-            x = conv(x, edge_index)
+            if self.weighted:
+                x = conv(x, ei, edge_weight=ew)
+            else: 
+                x = conv(x, ei)
             if self.use_bn:
                 x = self.bns[i](x)
             x = self.activation(x)
             x = f.dropout(x, p=self.dropout, training=self.training)
+            
+        x = self.pool(x, batch)
         x = self.linear(x)
         return f.softmax(x, dim=1)
 
@@ -157,12 +178,13 @@ class GAT(nn.Module):
 
     def __init__(
         self,
+        num_layers: int,
         nfeat: int,
         nhid: int,
         nclass: int,
         dropout: float,
+        adj_weight: bool = False,
         use_bn: bool = False,
-        num_layers: int = 2,
         heads: int = 2,
         out_heads: int = 1,
     ):
@@ -174,6 +196,7 @@ class GAT(nn.Module):
             nclass: Number of output features.
             dropout: Dropout rate.
             use_bn: Whether to use batch normalization.
+            adj_weight: Whether include the edge_weight.
             num_layers: Number of layers.
             heads: Number of attention heads.
             out_heads: Number of output heads.
@@ -210,36 +233,35 @@ class GAT(nn.Module):
             )
             self.bns.append(nn.BatchNorm1d(self.hidden_channels * heads))
 
-        self.convs.append(
-            pyg_nn.GATConv(
-                self.hidden_channels * heads,
-                self.output_channels,
-                dropout=dropout,
-                heads=out_heads,
-                concat=False,
-            )
-        )
-
         self.dropout = dropout
         self.activation = f.elu
         self.use_bn = use_bn
+        self.weighted = adj_weight
 
-    def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+        self.linear = nn.Linear(self.hidden_channels * heads, self.output_channels)
+        self.pool = pyg_nn.global_mean_pool
+
+    def forward(self, data) -> torch.Tensor:
         """Forward pass.
 
         Args:
-            x: The input features.
-            edge_index: The edge index.
+            data: Graph data.
 
         Returns:
             The output of the model.
         """
+        x, ei, ew, batch = data.x, data.edge_index, data.edge_attr, data.batch
         x = f.dropout(x, p=self.dropout, training=self.training)
-        for i, conv in enumerate(self.convs[:-1]):
-            x = conv(x, edge_index)
+        for i, conv in enumerate(self.convs):
+            if self.weighted:
+                x = conv(x, ei, edge_weight=ew)
+            else: 
+                x = conv(x, ei)
             if self.use_bn:
                 x = self.bns[i](x)
             x = self.activation(x)
             x = f.dropout(x, p=self.dropout, training=self.training)
+
+        x = self.pool(x, batch)
         x = self.linear(x)
         return f.softmax(x, dim=1)
