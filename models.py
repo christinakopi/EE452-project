@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as f
 import torch_geometric.nn as pyg_nn
-
+from typing import Literal
 
 class GCN(nn.Module):
     """Graph convolutional network."""
@@ -16,6 +16,7 @@ class GCN(nn.Module):
         dropout: float,
         adj_weight: bool = False,
         use_bn: bool = False,
+        pool: Literal["mean", "max"] = "mean"
     ):
         """Initialize the model.
 
@@ -59,7 +60,10 @@ class GCN(nn.Module):
         self.weighted = adj_weight
 
         self.linear = nn.Linear(self.hidden_channels, self.output_channels)
-        self.pool = pyg_nn.global_mean_pool
+        if pool == "mean":
+          self.pool = pyg_nn.global_mean_pool
+        elif pool == "max":
+          self.pool = pyg_nn.global_max_pool
 
     
     def forward(self, data) -> torch.Tensor:
@@ -100,6 +104,7 @@ class GNNSage(nn.Module):
         dropout: float,
         adj_weight: bool = False,
         use_bn: bool = False,
+        pool: Literal["mean", "max"] = "mean"
     ):
         """Initialize the model.
 
@@ -144,7 +149,10 @@ class GNNSage(nn.Module):
         self.weighted = adj_weight
 
         self.linear = nn.Linear(self.hidden_channels, self.output_channels)
-        self.pool = pyg_nn.global_mean_pool
+        if pool == "mean":
+          self.pool = pyg_nn.global_mean_pool
+        elif pool == "max":
+          self.pool = pyg_nn.global_max_pool
 
     
     def forward(self, data) -> torch.Tensor:
@@ -187,6 +195,7 @@ class GAT(nn.Module):
         use_bn: bool = False,
         heads: int = 2,
         out_heads: int = 1,
+        pool: Literal["mean", "max"] = "mean"
     ):
         """Initialize the model.
 
@@ -239,7 +248,10 @@ class GAT(nn.Module):
         self.weighted = adj_weight
 
         self.linear = nn.Linear(self.hidden_channels * heads, self.output_channels)
-        self.pool = pyg_nn.global_mean_pool
+        if pool == "mean":
+          self.pool = pyg_nn.global_mean_pool
+        elif pool == "max":
+          self.pool = pyg_nn.global_max_pool
 
     def forward(self, data) -> torch.Tensor:
         """Forward pass.
