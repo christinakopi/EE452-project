@@ -88,7 +88,7 @@ class GCN(nn.Module):
                 x = conv(x, ei)
             if self.use_bn:
                 x = self.bns[i](x, batch = batch)
-             x = f.dropout(x, p=self.dropout, training=self.training)
+            x = f.dropout(x, p=self.dropout, training=self.training)
             x = self.activation(x)
         
         x = self.conv_last(x, ei)
