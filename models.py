@@ -88,8 +88,8 @@ class GCN(nn.Module):
                 x = conv(x, ei)
             if self.use_bn:
                 x = self.bns[i](x, batch = batch)
-            x = f.dropout(x, p=self.dropout, training=self.training)
             x = self.activation(x)
+            x = f.dropout(x, p=self.dropout, training=self.training)
         
         x = self.conv_last(x, ei)
         x = self.pool(x, batch)
@@ -182,8 +182,8 @@ class GNNSage(nn.Module):
                 x = conv(x, ei)
             if self.use_bn:
                 x = self.bns[i](x, batch = batch)
-            x = f.dropout(x, p=self.dropout, training=self.training)
             x = self.activation(x)
+            x = f.dropout(x, p=self.dropout, training=self.training)
 
         x = self.conv_last(x, ei)
         x = self.pool(x, batch)
@@ -289,8 +289,8 @@ class GAT(nn.Module):
                 x = conv(x, ei)
             if self.use_bn:
                 x = self.bns[i](x, batch = batch)
-            x = f.dropout(x, p=self.dropout, training=self.training)
             x = self.activation(x)
+            x = f.dropout(x, p=self.dropout, training=self.training)
 
         x = self.conv_last(x, ei)
         x = self.pool(x, batch)
@@ -342,8 +342,8 @@ class GIN(torch.nn.Module):
     def forward(self, data):
         x, ei, ew, batch = data.x, data.edge_index, data.edge_attr, data.batch
         x = self.linear0(x)
-        x = f.dropout(x, p=self.dropout, training=self.training)
         x = self.activation(x)
+        x = f.dropout(x, p=self.dropout, training=self.training)
         for i in range(self.num_layers):
             x = self.convs[i](x, ei)
         
