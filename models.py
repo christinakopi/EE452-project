@@ -324,12 +324,11 @@ class GIN(torch.nn.Module):
         for i in range(num_layers):
             mlp = nn.Sequential(
                 nn.Linear(self.hidden_channels, self.hidden_channels), 
-                nn.BatchNorm1d(self.hidden_channels) if self.use_bn else nn.Identity(),
+                nn.BatchNorm1d(self.hidden_channels),
                 nn.ReLU(),                       
                 nn.Linear(self.hidden_channels, self.hidden_channels), 
-                nn.BatchNorm1d(self.hidden_channels) if self.use_bn else nn.Identity(),
+                nn.BatchNorm1d(self.hidden_channels),
                 nn.ReLU())
-            )
             self.convs.append(pyg_nn.GINConv(mlp, eps=0, train_eps=False))
         
         self.linear1 = nn.Linear(self.hidden_channels, self.hidden_channels)
