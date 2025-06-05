@@ -21,9 +21,9 @@ def fft_filtering(x: np.ndarray) -> np.ndarray:
 
 
 def stft_filtering(x: np.ndarray) -> np.ndarray:
-    nperseg = x.shape[0]
+    nperseg = x.shape[0] // 3
     channel_shapes = x.shape[1]
-    f, t, Zxx = signal.stft(x, fs=250, axis=0, nperseg=nperseg, noverlap=0)
+    f, t, Zxx = signal.stft(x, fs=250, axis=0, nperseg=nperseg, noverlap=nperseg // 2)
 
     Zxx = np.abs(Zxx.reshape(-1, channel_shapes))
     mag = np.log(np.where(Zxx > 1e-8, Zxx, 1e-8))
