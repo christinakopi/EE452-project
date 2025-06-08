@@ -349,6 +349,6 @@ class GIN(torch.nn.Module):
         
         x = self.linear1(x)
         x = self.activation(x)
-        x = self.pool(x)
+        x = self.pool(x, batch)
         x = self.linear2(x)
         return f.softmax(x, dim=1)
