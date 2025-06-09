@@ -5,7 +5,13 @@ import torch_geometric.nn as pyg_nn
 from typing import Literal
 
 class GCN(nn.Module):
-    """Graph convolutional network."""
+    """
+    Graph convolutional network.
+    
+    This model applies a stack of GCN layers followed by global pooling and
+    a final linear classifier. Optional components include edge weights, 
+    batch normalization, and flexible pooling strategies.
+    """
 
     def __init__(
         self,
@@ -18,23 +24,30 @@ class GCN(nn.Module):
         use_bn: bool = False,
         pool: Literal["mean", "max"] = "mean"
     ):
-        """Initialize the model.
+        """Initialize the GCN model.
 
         Args:
-            num_layers: Number of layers.
-            nfeat: Number of input features.
-            nhid: Number of hidden features.
-            nclass: Number of output features.
-            dropout: Dropout rate.
-            adj_weight: Whether include the edge_weight.
-            use_bn: Whether to use batch normalization.
+            num_layers (int): Number of layers (excluding the final projection layer).
+            nfeat (int): Number of input features.
+            nhid (int): Number of hidden units per layer.
+            nclass (int): Number of output classes.
+            dropout (float): Dropout rate used after each layer (0-1).
+            adj_weight (bool, optional): Whether to use edge weights during GCN propagation. False by defalut.
+            use_bn (bool, optional): Whether to apply batch normalization after each layer. False by defalut.
+            pool (Literal["mean", "max"], optional): Pooling strategy for graph-level readout. Defaults to "mean".
         """
         super(GCN, self).__init__()
 
         self.input_channels = nfeat
         self.output_channels = nclass
         self.hidden_channels = nhid
+        
+        self.dropout = dropout
+        self.activation = f.relu
+        self.use_bn = use_bn
+        self.weighted = adj_weight
 
+        #Creating stack of layers
         self.convs = nn.ModuleList()
         self.convs.append(
             pyg_nn.GCNConv(
@@ -53,18 +66,15 @@ class GCN(nn.Module):
                 )
             )
             self.bns.append(pyg_nn.LayerNorm(self.hidden_channels))
-          
+        
         self.conv_last = pyg_nn.GCNConv(
             self.hidden_channels,
             self.hidden_channels,
         )
 
-        self.dropout = dropout
-        self.activation = f.relu
-        self.use_bn = use_bn
-        self.weighted = adj_weight
-
         self.linear = nn.Linear(self.hidden_channels, self.output_channels)
+        
+        #Pooling strategy
         if pool == "mean":
           self.pool = pyg_nn.global_mean_pool
         elif pool == "max":
@@ -72,7 +82,7 @@ class GCN(nn.Module):
 
     
     def forward(self, data) -> torch.Tensor:
-        """Forward pass.
+        """Forward pass of GCN model.
 
         Args:
             data: Graph data.
@@ -81,24 +91,33 @@ class GCN(nn.Module):
             The output of the model.
         """
         x, ei, ew, batch = data.x, data.edge_index, data.edge_attr, data.batch
+        
         for i, conv in enumerate(self.convs):
             if self.weighted:
                 x = conv(x, ei, edge_weight=ew)
             else: 
                 x = conv(x, ei)
+                
             if self.use_bn:
                 x = self.bns[i](x, batch = batch)
+                
             x = self.activation(x)
             x = f.dropout(x, p=self.dropout, training=self.training)
         
         x = self.conv_last(x, ei)
         x = self.pool(x, batch)
         x = self.linear(x)
+        
         return f.softmax(x, dim=1)
 
 
 class GNNSage(nn.Module):
-    """Graph message-passing network."""
+    """
+    Graph Neural Network using GraphSAGE convolutional layers for graph-level classification.
+
+    This model uses a stack of GraphSAGE layers with optional batch normalization and
+    dropout, followed by a global pooling operation and a final linear classification layer.
+    """
 
     def __init__(
         self,
@@ -111,22 +130,27 @@ class GNNSage(nn.Module):
         use_bn: bool = False,
         pool: Literal["mean", "max"] = "mean"
     ):
-        """Initialize the model.
+        """Initialize the GNNSage model.
 
         Args:
-            num_layers: Number of layers.
-            nfeat: Number of input features.
-            nhid: Number of hidden features.
-            nclass: Number of output features.
-            dropout: Dropout rate.
-            adj_weight: Whether include the edge_weight.
-            use_bn: Whether to use batch normalization.
+            num_layers (int): Number of layers (excluding the final projection layer).
+            nfeat (int): Number of input features.
+            nhid (int): Number of hidden units per layer.
+            nclass (int): Number of output classes.
+            dropout (float): Dropout rate used after each layer (0-1).
+            adj_weight (bool, optional): Whether to use edge weights during GCN propagation. False by defalut.
+            use_bn (bool, optional): Whether to apply batch normalization after each layer. False by defalut.
+            pool (Literal["mean", "max"], optional): Pooling strategy for graph-level readout. Defaults to "mean".
         """
         super(GNNSage, self).__init__()
 
         self.input_channels = nfeat
         self.output_channels = nclass
         self.hidden_channels = nhid
+        self.dropout = dropout
+        self.activation = f.relu
+        self.use_bn = use_bn
+        self.weighted = adj_weight
 
         self.convs = nn.ModuleList()
         self.convs.append(
@@ -152,13 +176,8 @@ class GNNSage(nn.Module):
             self.hidden_channels,
         )
 
-        self.dropout = dropout
-        self.activation = f.relu
-        self.use_bn = use_bn
-
-        self.weighted = adj_weight
-
         self.linear = nn.Linear(self.hidden_channels, self.output_channels)
+        
         if pool == "mean":
           self.pool = pyg_nn.global_mean_pool
         elif pool == "max":
@@ -175,24 +194,33 @@ class GNNSage(nn.Module):
             The output of the model.
         """
         x, ei, ew, batch = data.x, data.edge_index, data.edge_attr, data.batch
+        
         for i, conv in enumerate(self.convs):
             if self.weighted:
                 x = conv(x, ei, edge_weight=ew)
             else: 
                 x = conv(x, ei)
+                
             if self.use_bn:
                 x = self.bns[i](x, batch = batch)
+                
             x = self.activation(x)
             x = f.dropout(x, p=self.dropout, training=self.training)
 
         x = self.conv_last(x, ei)
         x = self.pool(x, batch)
         x = self.linear(x)
+        
         return f.softmax(x, dim=1)
 
 
 class GAT(nn.Module):
-    """Graph attention network."""
+    """
+    Graph Attention Network (GAT) for graph-level classification.
+
+    This model uses multi-head attention layers with optional batch normalization and dropout.
+    Node-level outputs are aggregated via a global pooling operation before classification.
+    """
 
     def __init__(
         self,
@@ -210,15 +238,16 @@ class GAT(nn.Module):
         """Initialize the model.
 
         Args:
-            nfeat: Number of input features.
-            nhid: Number of hidden features.
-            nclass: Number of output features.
-            dropout: Dropout rate.
-            use_bn: Whether to use batch normalization.
-            adj_weight: Whether include the edge_weight.
-            num_layers: Number of layers.
-            heads: Number of attention heads.
-            out_heads: Number of output heads.
+            num_layers (int): Number of layers (excluding the final projection layer).
+            nfeat (int): Number of input features.
+            nhid (int): Number of hidden units per layer.
+            nclass (int): Number of output classes.
+            dropout (float): Dropout rate used after each layer (0-1).
+            adj_weight (bool, optional): Whether to use edge weights during GCN propagation. False by defalut.
+            use_bn (bool, optional): Whether to apply batch normalization after each layer. False by defalut.
+            heads (int, optional): Number of attention heads per layer. Defaults to 2.
+            out_heads (int, optional): Number of heads for the final GAT layer. Currently unused, for extension. Defaults to 1.
+            pool (Literal["mean", "max"], optional): Pooling strategy for graph-level readout. Defaults to "mean".
         """
         super(GAT, self).__init__()
 
@@ -298,6 +327,13 @@ class GAT(nn.Module):
         return f.softmax(x, dim=1)
 
 class GIN(torch.nn.Module):
+    """
+    Graph Isomorphism Network (GIN) for graph-level classification.
+
+    This implementation uses MLP-based GINConv layers for message passing, with optional batch normalization,
+    ReLU activations, and dropout. A global pooling layer aggregates node features to form a graph-level representation
+    before classification.
+    """
     def __init__(
         self,
         num_layers: int,
@@ -308,6 +344,17 @@ class GIN(torch.nn.Module):
         use_bn: bool = False,
         pool: Literal["mean", "max"] = "mean"
         ):
+        """Initialize the model.
+
+        Args:
+            num_layers (int): Number of layers (excluding the final projection layer).
+            nfeat (int): Number of input features.
+            nhid (int): Number of hidden units per layer.
+            nclass (int): Number of output classes.
+            dropout (float): Dropout rate used after each layer (0-1).
+            use_bn (bool, optional): Whether to apply batch normalization after each layer. False by defalut.
+            pool (Literal["mean", "max"], optional): Pooling strategy for graph-level readout. Defaults to "mean".
+        """
         super(GIN, self).__init__()
         self.input_channels = nfeat
         self.output_channels = nclass
@@ -340,10 +387,21 @@ class GIN(torch.nn.Module):
           self.pool = pyg_nn.global_max_pool
 
     def forward(self, data):
+        """Forward pass.
+
+        Args:
+            data: Graph data.
+
+        Returns:
+            The output of the model.
+        """
         x, ei, ew, batch = data.x, data.edge_index, data.edge_attr, data.batch
+        
         x = self.linear0(x)
         x = self.activation(x)
+        
         x = f.dropout(x, p=self.dropout, training=self.training)
+        
         for i in range(self.num_layers):
             x = self.convs[i](x, ei)
         
@@ -351,4 +409,5 @@ class GIN(torch.nn.Module):
         x = self.activation(x)
         x = self.pool(x, batch)
         x = self.linear2(x)
+        
         return f.softmax(x, dim=1)
