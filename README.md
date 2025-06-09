@@ -36,8 +36,8 @@ The following models are implemented and evaluated:
 - Validation: Cross-validation.
 - Final performance evaluated on a Kaggle test set.
 
-```
 ## Project Structure
+```
 ├── models/               # GNN model definitions (e.g., GCN, GAT, SAGE, GIN)
 ├── utils/                # Utilities for graph construction and preprocessing
 ├── cross_validation.py   # Functions for performing cross-validation
