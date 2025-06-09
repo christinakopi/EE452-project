@@ -20,6 +20,19 @@ def fft_filtering(x: np.ndarray) -> np.ndarray:
     return x[int(0.5 * win_len // 250) : 30 * win_len // 250]
 
 
+def fft_filtering_new(x: np.ndarray) -> np.ndarray:
+    nperseg = x.shape[0]
+    channel_shapes = x.shape[1]
+    f, t, Zxx = signal.stft(x, fs=250, axis=0, nperseg=nperseg, noverlap=0)
+
+    Zxx = np.abs(Zxx.reshape(-1, channel_shapes))
+    mag = np.log(np.where(Zxx > 1e-8, Zxx, 1e-8))
+
+    win_len = mag.shape[0]
+    # Only frequencies b/w 0.5 and 30Hz
+    return mag[int(0.5 * win_len // 250) : 30 * win_len // 250]
+
+
 def stft_filtering(x: np.ndarray) -> np.ndarray:
     nperseg = x.shape[0] // 3
     channel_shapes = x.shape[1]
