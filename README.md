@@ -36,14 +36,16 @@ The following models are implemented and evaluated:
 - Validation: Cross-validation.
 - Final performance evaluated on a Kaggle test set.
 
+```
 ## Project Structure
-├── models/ # GNN model definitions (GCN, GAT, etc.)
-├── utils/ # Graph construction and preprocessing
-├── cross_validation.py # Functions used for cross-validation
-├── filters.py # Filter implementation
-├── README.md # Project overview
-├── run_pipeline.ipynb # Python notebook used for running the whole pipeline of project
-└── train.py # Functions used for training (train_epoch and evaluate)
+├── models/               # GNN model definitions (e.g., GCN, GAT, SAGE, GIN)
+├── utils/                # Utilities for graph construction and preprocessing
+├── cross_validation.py   # Functions for performing cross-validation
+├── filters.py            # Graph filter implementations
+├── train.py              # Training and evaluation logic (e.g., train_epoch, evaluate)
+├── run_pipeline.ipynb    # Jupyter notebook for executing the full training pipeline
+└── README.md             # Project overview and setup instructions
+```
 
 ## Requirements
 
